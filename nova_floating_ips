@@ -46,7 +46,7 @@ def get_status():
     floating_ips = db.floating_ip_get_all(ctxt)
     for floating_ip in floating_ips:
         status['total'] += 1
-        if floating_ip['fixed_ip']:
+        if floating_ip['fixed_ip_id']:
             status['associated'] += 1
         if floating_ip['project_id']:
             status['allocated'] += 1
