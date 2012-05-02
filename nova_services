@@ -16,7 +16,7 @@ from nova import flags
 from nova import utils
 import sys
 
-services = ['nova-compute', 'nova-volume', 'nova-scheduler', 'nova-vncproxy', 'nova-network']
+services = ['nova-compute', 'nova-volume', 'nova-scheduler', 'nova-vncproxy', 'nova-network', 'nova-cert', 'nova-console', 'nova-consoleauth']
 
 
 def print_config():
