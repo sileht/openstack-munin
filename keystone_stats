@@ -10,10 +10,14 @@
 #%# capabilities=autoconf
 #%# family=keystone
 
-from keystone.common import config
-import keystone.backends as db
-import keystone.backends.api as db_api
 import sys
+
+from keystone.common import utils
+from keystone import config
+from keystone import exception
+from keystone import identity
+
+CONF = config.CONF
 
 stats = ['users', 'tenants']
 
@@ -42,14 +46,27 @@ def get_status():
         enabled[k] = 0
         total[k] = 0
 
-    for user in db_api.user.get_all():
-        total['users'] += 1
-        if user.enabled:
-            enabled['users'] += 1
+    identity_api = identity.Manager()
 
-    for tenant in db_api.tenant.get_all():
+    for user in identity_api.list_users(None):
+        total['users'] += 1
+        if user['enabled']:
+            enabled['users'] += 1
+    
+    # Ldap and  pam driver don't support get_all_tenants()
+    # kvs and sql implement get_tenants() instead of get_all_tenants()
+    # Whoo: None of backend implements the correct function
+    tenants = []
+    for api_func in [ 'get_all_tenants', 'get_tenants']:
+        try:
+            tenants = getattr(identity_api, api_func)(None)
+        except exception.NotImplemented, NotImplementedError:
+            pass
+
+
+    for tenant in tenants:
         total['tenants'] += 1
-        if tenant.enabled:
+        if tenant['enabled']:
             enabled['tenants'] += 1
 
     return {'enabled': enabled, 'total': total}
@@ -69,6 +86,6 @@ if __name__ == '__main__':
         elif sys.argv[1] == "autoconf":
             print "yes"
     else:
-        config_file, conf = config.load_paste_config('admin', {}, [])
-        db.configure_backends(conf.global_conf)
+        CONF(config_files=[utils.find_config('keystone.conf')])
         print_values()
+
