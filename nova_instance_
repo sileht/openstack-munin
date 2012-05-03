@@ -11,14 +11,20 @@
 #   user nova
 #
 # Magic markers
-#%# capabilities=autoconf
-#%# family=nova
+#%# capabilities=autoconf suggest
+#%# family=auto
 
-from nova import context
-from nova import db
-from nova import flags
-from nova import utils
 import sys
+
+try:
+    from nova import context
+    from nova import db
+    from nova import flags
+    from nova import utils
+except ImportError:
+    succesful_import = False
+else:
+    succesful_import = True
 
 
 class InstanceState(object):
@@ -33,11 +39,8 @@ class InstanceState(object):
         instances = db.instance_get_all(ctxt)
         cls.instance_counts = {}
         instance_types = {}
-        for it in db.instance_type_get_all(ctxt, True).values():
+        for it in db.instance_type_get_all(ctxt, True):
             instance_types[it['id']] = it['name']
-
-        if metric == 'state':
-            metric = 'state_description'
 
         for instance in instances:
             i = dict(instance)
@@ -78,17 +81,35 @@ def print_values(metric):
     for (state, value) in status.iteritems():
         print '%s.value %s' % (state, value)
 
+def print_suggest():
+    suggest = [ "vm_state",
+                "vcpus",
+                "task_state",
+                "root_gb",
+                "ephemeral_gb",
+                "power_state",
+                "memory_mb",
+                "instance_type_id",
+                ]
+    print "\n".join(suggest)
+
 
 if __name__ == '__main__':
     argv = sys.argv[:]
     utils.default_flagfile()
     flags.FLAGS(sys.argv)
-    metric = argv[0].split('nova_instance_').pop() or 'state'
+    metric = argv[0].split('nova_instance_').pop() or 'vm_state'
 
     if len(argv) > 1:
         if argv[1] == 'config':
             print_config(metric)
+        elif argv[1] == 'suggest':
+            print_suggest()
         elif argv[1] == 'autoconf':
-            print 'yes'
-    else:
+            if not succesful_import:  
+                print 'no (failed import nova module)'
+                sys.exit(0)
+            else:
+                print 'yes'
+    elif succesful_import:
         print_values(metric)
