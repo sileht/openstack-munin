@@ -8,7 +8,7 @@
 #
 # Needs following minimal configuration in plugin-conf.d/glance:
 #   [glance_*]
-#   user glance
+#   user root
 #
 # Magic markers
 #%# capabilities=autoconf suggest
@@ -24,12 +24,28 @@ try:
     from glance.common.cfg import CommonConfigOpts
     from glance.registry.db import models
     from glance.registry.db.api import get_session, configure_db
+
+    from keystone.common import utils
+    from keystone import config
+    from keystone import exception
+    from keystone import identity
+
 except ImportError:
     succesful_import = False
 else:
     succesful_import = True
 
 
+def get_name_from_tenant(tenant):
+    KEYSTONE_CONF = config.CONF(config_files=[utils.find_config('keystone.conf')])
+    identity_api = identity.Manager()
+    tenant_info = identity_api.get_tenant(None, tenant)
+    if not tenant_info: 
+        return tenant
+    else:
+        return tenant_info["name"]
+
+    
 def load_conf():
     CONF = CommonConfigOpts(project="glance", prog="glance-registry")
     CONF()
@@ -41,12 +57,16 @@ def load_conf():
 
 
 def print_config(tenant):
-    print 'graph_title Glance used size for tenant %s' % tenant
+    if tenant == "Global":
+        print 'graph_title Glance used size for all tenants'
+        print 'graph_info This graph shows the used size in glance for all tenants'
+    else:
+        print 'graph_title Glance used size for tenant %s' % get_name_from_tenant(tenant)
+        print 'graph_info This graph shows the used size in glance for tenant %s' % tenant
     print 'graph_vlabel Bytes'
     print 'graph_args --base 1024 --lower-limit 0'
     print 'graph_category glance'
-    print 'graph_info This graph shows the used size in glance for tenant %s' % tenant
-    print '%s.label %s' % (tenant, tenant)
+    print '%s.label %s' % (tenant, get_name_from_tenant(tenant))
     print '%s.draw LINE2' % tenant
     print '%s.info %s MBytes' % (tenant, tenant)
 
