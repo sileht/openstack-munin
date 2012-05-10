@@ -8,18 +8,20 @@
 #
 # Needs following minimal configuration in plugin-conf.d/glance:
 #   [glance_*]
-#   user root
+#   user glance
+#
+# To show tenant name plugin must run as root
 #
 # Magic markers
 #%# capabilities=autoconf suggest
 #%# family=auto
 
-
 import sys
 import os
 
 try: 
-    from sqlalchemy.orm import exc, joinedload
+    from sqlalchemy.orm import joinedload
+    import sqlalchemy.exc
     
     from glance.common.cfg import CommonConfigOpts
     from glance.registry.db import models
@@ -37,9 +39,20 @@ else:
 
 
 def get_name_from_tenant(tenant):
-    KEYSTONE_CONF = config.CONF(config_files=[utils.find_config('keystone.conf')])
+    try:
+        KEYSTONE_CONF = config.CONF(config_files=[utils.find_config('keystone.conf')])
+    except:
+        # keystone configuration can not be loaded, use id as name"
+        return tenant
+
     identity_api = identity.Manager()
-    tenant_info = identity_api.get_tenant(None, tenant)
+
+    try:
+        tenant_info = identity_api.get_tenant(None, tenant)
+    except sqlalchemy.exc.OperationalError:
+        # keystone database can not be connected, use id as name"
+        return tenant
+
     if not tenant_info: 
         return tenant
     else:
